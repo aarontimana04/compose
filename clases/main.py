@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import mysql.connector
+from mysql.connector import Error
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -30,43 +31,98 @@ def get_classes():
 # Get a class by ID
 @app.get("/classes/{id}")
 def get_class(id: int):
-    mydb = mysql.connector.connect(host=host_name, port=port_number, user=user_name, password=password_db, database=database_name)
-    cursor = mydb.cursor()
-    cursor.execute(f"SELECT * FROM {schema_name}.clases WHERE id = {id}")  # Utilizar el esquema específico
-    result = cursor.fetchone()
-    mydb.close()
+    try:
+        mydb = mysql.connector.connect(
+            host=host_name, port=port_number, user=user_name, password=password_db, database=database_name
+        )
+        cursor = mydb.cursor()
+        cursor.execute(f"SELECT * FROM {schema_name}.clases WHERE id = %s", (id,))
+        result = cursor.fetchone()
+        if not result:
+            raise HTTPException(status_code=404, detail="Class not found")
+    finally:
+        mydb.close()
     return {"class": result}
 
 # Add a new class
 @app.post("/classes")
 def add_class(item: Item):
-    mydb = mysql.connector.connect(host=host_name, port=port_number, user=user_name, password=password_db, database=database_name)
-    cursor = mydb.cursor()
-    sql = f"INSERT INTO {schema_name}.clases (name, id_alumno, id_profesor, degree) VALUES (%s, %s, %s, %s)"  # Utilizar el esquema específico
-    val = (item.name, item.id_alumno, item.id_profesor, item.degree)
-    cursor.execute(sql, val)
-    mydb.commit()
-    mydb.close()
-    return {"message": "Class added successfully"}
+    try:
+        mydb = mysql.connector.connect(
+            host=host_name,
+            port=port_number,
+            user=user_name,
+            password=password_db,
+            database=database_name
+        )
+        cursor = mydb.cursor()
 
+        # Verificar si el alumno existe
+        cursor.execute(f"SELECT COUNT(*) FROM api_alumnos.alumnos WHERE id = %s", (item.id_alumno,))
+        alumno_count = cursor.fetchone()[0]
+        if alumno_count == 0:
+            raise HTTPException(status_code=400, detail="Alumno no encontrado")
+
+        # Verificar si el profesor existe
+        cursor.execute(f"SELECT COUNT(*) FROM api_profesores.profesores WHERE id = %s", (item.id_profesor,))
+        profesor_count = cursor.fetchone()[0]
+        if profesor_count == 0:
+            raise HTTPException(status_code=400, detail="Profesor no encontrado")
+
+        # Insertar la nueva clase
+        sql = f"INSERT INTO {schema_name}.clases (name, id_alumno, id_profesor, degree) VALUES (%s, %s, %s, %s)"
+        val = (item.name, item.id_alumno, item.id_profesor, item.degree)
+        cursor.execute(sql, val)
+        mydb.commit()
+        mydb.close()
+        return {"message": "Class added successfully"}
+    except mysql.connector.Error as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 # Modify a class
 @app.put("/classes/{id}")
 def update_class(id: int, item: Item):
-    mydb = mysql.connector.connect(host=host_name, port=port_number, user=user_name, password=password_db, database=database_name)
-    cursor = mydb.cursor()
-    sql = f"UPDATE {schema_name}.clases SET name = %s, id_alumno = %s, id_profesor = %s, degree = %s WHERE id = %s"  # Utilizar el esquema específico
-    val = (item.name, item.id_alumno, item.id_profesor, item.degree, id)
-    cursor.execute(sql, val)
-    mydb.commit()
-    mydb.close()
+    try:
+        mydb = mysql.connector.connect(
+            host=host_name, port=port_number, user=user_name, password=password_db, database=database_name
+        )
+        cursor = mydb.cursor()
+
+        # Verificar si la clase existe
+        cursor.execute(f"SELECT COUNT(*) FROM {schema_name}.clases WHERE id = %s", (id,))
+        if cursor.fetchone()[0] == 0:
+            raise HTTPException(status_code=404, detail="Class not found")
+
+        sql = f"UPDATE {schema_name}.clases SET name = %s, id_alumno = %s, id_profesor = %s, degree = %s WHERE id = %s"
+        val = (item.name, item.id_alumno, item.id_profesor, item.degree, id)
+        cursor.execute(sql, val)
+        mydb.commit()
+    except mysql.connector.Error as e:
+        mydb.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        mydb.close()
     return {"message": "Class modified successfully"}
 
 # Delete a class by ID
-@app.delete("/classes/{id}")
 def delete_class(id: int):
-    mydb = mysql.connector.connect(host=host_name, port=port_number, user=user_name, password=password_db, database=database_name)
-    cursor = mydb.cursor()
-    cursor.execute(f"DELETE FROM {schema_name}.clases WHERE id = {id}")  # Utilizar el esquema específico
-    mydb.commit()
-    mydb.close()
+    try:
+        mydb = mysql.connector.connect(
+            host=host_name, port=port_number, user=user_name, password=password_db, database=database_name
+        )
+        cursor = mydb.cursor()
+
+        # Verificar si la clase existe
+        cursor.execute(f"SELECT COUNT(*) FROM {schema_name}.clases WHERE id = %s", (id,))
+        if cursor.fetchone()[0] == 0:
+            raise HTTPException(status_code=404, detail="Class not found")
+
+        cursor.execute(f"DELETE FROM {schema_name}.clases WHERE id = %s", (id,))
+        mydb.commit()
+    except mysql.connector.Error as e:
+        mydb.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        mydb.close()
     return {"message": "Class deleted successfully"}
