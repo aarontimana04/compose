@@ -1,8 +1,23 @@
 from fastapi import FastAPI
 import mysql.connector
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 app = FastAPI()
+
+# Configurar CORS
+origins = [
+    "http://54.204.127.110:8084",
+    "http://18.209.231.242:8084"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # Permitir todos los métodos
+    allow_headers=["*"],  # Permitir todos los encabezados
+)
 
 host_name = "100.28.85.79"
 port_number = "8005"
