@@ -16,3 +16,8 @@
      image: aarontimana04/clases
      ports:
        - 8081:8001 
+   frontend:
+     build: ./frontend
+     image: aarontimana04/frontend
+     ports:
+       - 8084:80
