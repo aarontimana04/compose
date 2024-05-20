@@ -128,6 +128,10 @@ function createItem(event, type) {
 }
 
 function editItem(type, id) {
+    if (id === undefined) {
+        console.error("Undefined ID");
+        return;
+    }
     let url = '';
     switch(type) {
         case 'alumnos':
