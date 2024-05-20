@@ -8,6 +8,7 @@ app = FastAPI()
 
 # Configurar CORS
 origins = [
+    "http://lb-prodpro-1434514222.us-east-1.elb.amazonaws.com:8084",
     "http://54.204.127.110:8084",
     "http://18.209.231.242:8084"
 ]
