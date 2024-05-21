@@ -122,6 +122,7 @@ def update_class(id: int, item: Item):
     return {"message": "Class modified successfully"}
 
 # Delete a class by ID
+@app.delete("/classes/{id}")
 def delete_class(id: int):
     try:
         mydb = mysql.connector.connect(
